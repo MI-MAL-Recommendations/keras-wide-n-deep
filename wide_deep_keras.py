@@ -1,37 +1,29 @@
 import pandas as pd
+import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense, Merge
 from sklearn.preprocessing import MinMaxScaler
 
-COLUMNS = [
-    "age", "workclass", "fnlwgt", "education", "education_num", "marital_status", 
-    "occupation", "relationship", "race", "gender", "capital_gain", "capital_loss", 
-    "hours_per_week", "native_country", "income_bracket"
-]
-
+COLUMNS = ["UserID", "AnimeID", "UserRating",
+           "Genre0", "Genre1", "Genre2", "Genre3", "Genre4", "Genre5", "Genre6", "Genre7", "Genre8", "Genre9", "Genre10",
+           "Genre11", "Genre12", "Genre13", "Genre14", "Genre15", "Genre16", "Genre17", "Genre18", "Genre19", "Genre20",
+           "Genre21", "Genre22", "Genre23", "Genre24", "Genre25", "Genre26", "Genre27", "Genre28", "Genre29", "Genre30",
+           "Genre31", "Genre32", "Genre33", "Genre34", "Genre35", "Genre36", "Genre37", "Genre38", "Genre39", "Genre40",
+           "Genre41", "Genre42",
+           "MediaType", "Episodes", "OverallRating", "ListMembership"]
 LABEL_COLUMN = "label"
-
-CATEGORICAL_COLUMNS = [
-    "workclass", "education", "marital_status", "occupation", "relationship", 
-    "race", "gender", "native_country"
-]
-
-CONTINUOUS_COLUMNS = [
-    "age", "education_num", "capital_gain", "capital_loss", "hours_per_week"
-]
-
-def load(filename):
-    with open(filename, 'r') as f:
-        skiprows = 1 if 'test' in filename else 0
-        df = pd.read_csv(
-            f, names=COLUMNS, skipinitialspace=True, skiprows=skiprows, engine='python'
-        )
-        df = df.dropna(how='any', axis=0)
-    return df
+CATEGORICAL_COLUMNS = ["UserID", "AnimeID",
+                       "Genre0", "Genre1", "Genre2", "Genre3", "Genre4", "Genre5", "Genre6", "Genre7", "Genre8", "Genre9", "Genre10",
+                       "Genre11", "Genre12", "Genre13", "Genre14", "Genre15", "Genre16", "Genre17", "Genre18", "Genre19", "Genre20",
+                       "Genre21", "Genre22", "Genre23", "Genre24", "Genre25", "Genre26", "Genre27", "Genre28", "Genre29", "Genre30",
+                       "Genre31", "Genre32", "Genre33", "Genre34", "Genre35", "Genre36", "Genre37", "Genre38", "Genre39", "Genre40",
+                       "Genre41", "Genre42",
+                       "MediaType"]
+CONTINUOUS_COLUMNS = ["Episodes", "OverallRating", "ListMembership"]
 
 def preprocess(df):
-    df[LABEL_COLUMN] = df['income_bracket'].apply(lambda x: ">50K" in x).astype(int)
-    df.pop("income_bracket")
+    df[LABEL_COLUMN] = df["UserRating"].apply(lambda x: 1 if x >= 7 else 0)
+    df.pop("UserRating")
     y = df[LABEL_COLUMN].values
     df.pop(LABEL_COLUMN)
     
@@ -49,16 +41,17 @@ def preprocess(df):
     return X, y
 
 def main():
-    df_train = load('adult.data')
-    df_test = load('adult.test')
-    df = pd.concat([df_train, df_test])
-    train_len = len(df_train)
+    df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 1000)
+    train_len = len(df)
     
     X, y = preprocess(df)
-    X_train = X[:train_len]
-    y_train = y[:train_len]
-    X_test = X[train_len:]
-    y_test = y[train_len:]
+
+    split_perc=0.9
+    mask = np.random.rand(len(X)) < split_perc
+    X_train = X[mask]
+    y_train = y[mask]
+    X_test = X[~mask]
+    y_test = y[~mask]
     
     wide = Sequential()
     wide.add(Dense(1, input_dim=X_train.shape[1]))
