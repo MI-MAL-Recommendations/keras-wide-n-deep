@@ -60,11 +60,18 @@ def main():
     df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 100000)
     print ("Read Complete:" + str(time.strftime("%H:%M:%S")))
     
+    # Calculate mask and export X_train for other validation
+    split_perc=0.9
+    np.random.seed(0) # makes the mask predictable
+    mask = np.random.rand(len(df.index)) < split_perc
+    df_test = df[mask]
+    test_file = 'test_data.csv'
+    df_test.to_csv(test_file)
+    print('Test input saved as {}'.format(test_file))
+
     X_wide, X_deep, y = preprocess(df)
     print ("Preprocess Complete:" + str(time.strftime("%H:%M:%S")))
 
-    split_perc=0.9
-    mask = np.random.rand(len(X_wide)) < split_perc
     X_train_wide = X_wide[mask]
     X_train_deep = X_deep[mask]
     y_train = y[mask]
@@ -101,13 +108,28 @@ def main():
     model.fit([X_train_wide, X_train_deep], y_train, epochs=epoch_count, batch_size=32, 
           callbacks=[TestCallback(([X_test_wide, X_test_deep], y_test))])
 
-    loss, accuracy = model.evaluate([X_test_wide, X_test_deep], y_test)
-    print('\nTesting loss: {}, acc: {}\n'.format(loss, accuracy))
+    #loss, accuracy = model.evaluate([X_test_wide, X_test_deep], y_test)
+    #print('\nTesting loss: {}, acc: {}\n'.format(loss, accuracy))
     print ("Fit Complete:" + str(time.strftime("%H:%M:%S")))
 
     model_file = 'keras_model.h5'
     model.save(model_file)
     print('Model saved as {}'.format(model_file))
+
+    shape_filename = 'model_shapes.txt'
+    shape_file = open(shape_filename, 'w')
+    shape_file.write("%s\n" % X_train_wide.shape[1])
+    shape_file.write("%s\n" % X_train_deep.shape[1])
+    print('Shapes saved as {}'.format(shape_filename))
+    
+
+    preds = model.predict([X_test_wide, X_test_deep])
+    predict_filename = 'predictions.csv'
+    predict_file = open(predict_filename, 'w')
+    for item in preds:
+        predict_file.write("%s\n" % item)
+    print('Predictions saved as {}'.format(predict_filename))
+
 
 # https://github.com/fchollet/keras/issues/2548
 class TestCallback(Callback):
