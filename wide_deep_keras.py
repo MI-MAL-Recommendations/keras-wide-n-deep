@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import time
+from keras.callbacks import Callback
 from keras.models import Sequential
 from keras.layers import Dense, Merge
 from sklearn.preprocessing import MinMaxScaler
@@ -95,12 +96,28 @@ def main():
     )
     print ("Model Complete:" + str(time.strftime("%H:%M:%S")))
     
-    model.fit([X_train_wide, X_train_deep], y_train, nb_epoch=10, batch_size=32)
-    print ("Fit Complete:" + str(time.strftime("%H:%M:%S")))
-    
+    epoch_count = 10
+
+    model.fit([X_train_wide, X_train_deep], y_train, epochs=epoch_count, batch_size=32, 
+          callbacks=[TestCallback(([X_test_wide, X_test_deep], y_test))])
+
     loss, accuracy = model.evaluate([X_test_wide, X_test_deep], y_test)
-    print('\n', 'test accuracy:', accuracy)
-    print ("Evaluate Complete:" + str(time.strftime("%H:%M:%S")))
+    print('\nTesting loss: {}, acc: {}\n'.format(loss, accuracy))
+    print ("Fit Complete:" + str(time.strftime("%H:%M:%S")))
+
+    model_file = 'keras_model.h5'
+    model.save(model_file)
+    print('Model saved as {}'.format(model_file))
+
+# https://github.com/fchollet/keras/issues/2548
+class TestCallback(Callback):
+    def __init__(self, test_data):
+        self.test_data = test_data
+
+    def on_epoch_end(self, epoch, logs={}):
+        x, y = self.test_data
+        loss, acc = self.model.evaluate(x, y, verbose=0)
+        print('\nTesting loss: {}, acc: {}\n'.format(loss, acc))
     
 if __name__ == '__main__':
     main()
