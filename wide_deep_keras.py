@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
+import time
 from keras.models import Sequential
 from keras.layers import Dense, Merge
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import LabelEncoder
 
 COLUMNS = ["UserID", "AnimeID", "UserRating",
            "Genre0", "Genre1", "Genre2", "Genre3", "Genre4", "Genre5", "Genre6", "Genre7", "Genre8", "Genre9", "Genre10",
@@ -12,13 +15,7 @@ COLUMNS = ["UserID", "AnimeID", "UserRating",
            "Genre41", "Genre42",
            "MediaType", "Episodes", "OverallRating", "ListMembership"]
 LABEL_COLUMN = "label"
-CATEGORICAL_COLUMNS = ["UserID", "AnimeID",
-                       "Genre0", "Genre1", "Genre2", "Genre3", "Genre4", "Genre5", "Genre6", "Genre7", "Genre8", "Genre9", "Genre10",
-                       "Genre11", "Genre12", "Genre13", "Genre14", "Genre15", "Genre16", "Genre17", "Genre18", "Genre19", "Genre20",
-                       "Genre21", "Genre22", "Genre23", "Genre24", "Genre25", "Genre26", "Genre27", "Genre28", "Genre29", "Genre30",
-                       "Genre31", "Genre32", "Genre33", "Genre34", "Genre35", "Genre36", "Genre37", "Genre38", "Genre39", "Genre40",
-                       "Genre41", "Genre42",
-                       "MediaType"]
+CATEGORICAL_COLUMNS = ["UserID", "AnimeID", "MediaType"]
 CONTINUOUS_COLUMNS = ["Episodes", "OverallRating", "ListMembership"]
 
 def preprocess(df):
@@ -26,39 +23,62 @@ def preprocess(df):
     df.pop("UserRating")
     y = df[LABEL_COLUMN].values
     df.pop(LABEL_COLUMN)
-    
-    df = pd.get_dummies(df, columns=[x for x in CATEGORICAL_COLUMNS])
 
-    # TODO: select features for wide & deep parts
-    
-    # TODO: transformations (cross-products)
-    # from sklearn.preprocessing import PolynomialFeatures
-    # X = PolynomialFeatures(degree=2, interaction_only=True, include_bias=False).fit_transform(X)
-    
-    df = pd.DataFrame(MinMaxScaler().fit_transform(df), columns=df.columns)
+    genres = []
+    for i in range(43):
+        genres.append("Genre" + str(i))
 
-    X = df.values
-    return X, y
+    # select features for wide parts
+    df_wide = df.filter(genres, axis=1)
+    df_wide["UserID"] = df["UserID"]
+    df_wide["AnimeID"] = df["AnimeID"]
+    df_wide["MediaType"] = df["MediaType"]
+    
+    # select features for deep parts
+    df_deep = df.filter(genres, axis=1)
+    df_deep["UserID"] = df["UserID"]
+    df_deep["AnimeID"] = df["AnimeID"]
+    df_deep["MediaType"] = df["MediaType"]
+    df_deep["Episodes"] = df["Episodes"]
+    df_deep["OverallRating"] = df["OverallRating"]
+    df_deep["ListMembership"] = df["ListMembership"]
+    
+    df_wide = pd.get_dummies(df_wide, columns=[x for x in CATEGORICAL_COLUMNS])
+    df_deep = pd.get_dummies(df_deep, columns=[x for x in CATEGORICAL_COLUMNS])
+    
+    # TODO: transformations (cross-products using PolynomialFeatures)
+
+    # Scale all columns equally
+    df_wide = pd.DataFrame(MinMaxScaler().fit_transform(df_wide), columns=df_wide.columns)
+    df_deep = pd.DataFrame(MinMaxScaler().fit_transform(df_deep), columns=df_deep.columns)
+
+    X_wide = df_wide.values
+    X_deep = df_deep.values
+    return X_wide, X_deep, y
 
 def main():
-    df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 1000)
-    train_len = len(df)
+    print ("Begin:" + str(time.strftime("%H:%M:%S")))
+    df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 10000)
+    print ("Read Complete:" + str(time.strftime("%H:%M:%S")))
     
-    X, y = preprocess(df)
+    X_wide, X_deep, y = preprocess(df)
+    print ("Preprocess Complete:" + str(time.strftime("%H:%M:%S")))
 
     split_perc=0.9
-    mask = np.random.rand(len(X)) < split_perc
-    X_train = X[mask]
+    mask = np.random.rand(len(X_wide)) < split_perc
+    X_train_wide = X_wide[mask]
+    X_train_deep = X_deep[mask]
     y_train = y[mask]
-    X_test = X[~mask]
+    X_test_wide = X_wide[~mask]
+    X_test_deep = X_deep[~mask]
     y_test = y[~mask]
     
     wide = Sequential()
-    wide.add(Dense(1, input_dim=X_train.shape[1]))
+    wide.add(Dense(1, input_dim=X_train_wide.shape[1]))
     
     deep = Sequential()
     # TODO: add embedding
-    deep.add(Dense(input_dim=X_train.shape[1], output_dim=100, activation='relu'))
+    deep.add(Dense(input_dim=X_train_deep.shape[1], output_dim=100, activation='relu'))
     deep.add(Dense(100, activation='relu'))
     deep.add(Dense(50, activation='relu'))
     deep.add(Dense(1, activation='sigmoid'))
@@ -72,11 +92,14 @@ def main():
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
+    print ("Model Complete:" + str(time.strftime("%H:%M:%S")))
     
-    model.fit([X_train, X_train], y_train, nb_epoch=10, batch_size=32)
+    model.fit([X_train_wide, X_train_deep], y_train, nb_epoch=10, batch_size=32)
+    print ("Fit Complete:" + str(time.strftime("%H:%M:%S")))
     
-    loss, accuracy = model.evaluate([X_test, X_test], y_test)
+    loss, accuracy = model.evaluate([X_test_wide, X_test_deep], y_test)
     print('\n', 'test accuracy:', accuracy)
+    print ("Evaluate Complete:" + str(time.strftime("%H:%M:%S")))
     
 if __name__ == '__main__':
     main()
