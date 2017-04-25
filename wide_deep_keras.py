@@ -64,7 +64,7 @@ def main():
     split_perc=0.9
     np.random.seed(0) # makes the mask predictable
     mask = np.random.rand(len(df.index)) < split_perc
-    df_test = df[mask]
+    df_test = df[~mask]
     test_file = 'test_data.csv'
     df_test.to_csv(test_file)
     print('Test input saved as {}'.format(test_file))
