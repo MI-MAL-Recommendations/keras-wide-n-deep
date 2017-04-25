@@ -14,15 +14,12 @@ COLUMNS = ["UserID", "AnimeID", "UserRating",
            "Genre31", "Genre32", "Genre33", "Genre34", "Genre35", "Genre36", "Genre37", "Genre38", "Genre39", "Genre40",
            "Genre41", "Genre42",
            "MediaType", "Episodes", "OverallRating", "ListMembership"]
-LABEL_COLUMN = "label"
+LABEL_COLUMN = "UserRating"
 CATEGORICAL_COLUMNS = ["UserID", "AnimeID", "MediaType"]
 CONTINUOUS_COLUMNS = ["Episodes", "OverallRating", "ListMembership"]
 
 def preprocess(df):
-    df[LABEL_COLUMN] = df["UserRating"].apply(lambda x: 1 if x >= 7 else 0)
-    df.pop("UserRating")
     y = df[LABEL_COLUMN].values
-    df.pop(LABEL_COLUMN)
 
     genres = []
     for i in range(43):
@@ -45,6 +42,7 @@ def preprocess(df):
     
     df_wide = pd.get_dummies(df_wide, columns=[x for x in CATEGORICAL_COLUMNS])
     df_deep = pd.get_dummies(df_deep, columns=[x for x in CATEGORICAL_COLUMNS])
+    y = pd.get_dummies(y).values
     
     # TODO: transformations (cross-products using PolynomialFeatures)
 
@@ -58,7 +56,7 @@ def preprocess(df):
 
 def main():
     print ("Begin:" + str(time.strftime("%H:%M:%S")))
-    df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 10000)
+    df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 100000)
     print ("Read Complete:" + str(time.strftime("%H:%M:%S")))
     
     X_wide, X_deep, y = preprocess(df)
@@ -73,9 +71,11 @@ def main():
     X_test_deep = X_deep[~mask]
     y_test = y[~mask]
     
+    # Wide network
     wide = Sequential()
     wide.add(Dense(1, input_dim=X_train_wide.shape[1]))
     
+    # Deep network
     deep = Sequential()
     # TODO: add embedding
     deep.add(Dense(input_dim=X_train_deep.shape[1], output_dim=100, activation='relu'))
@@ -83,13 +83,14 @@ def main():
     deep.add(Dense(50, activation='relu'))
     deep.add(Dense(1, activation='sigmoid'))
     
+    # Combining the two - final layer
     model = Sequential()
     model.add(Merge([wide, deep], mode='concat', concat_axis=1))
-    model.add(Dense(1, activation='sigmoid'))
+    model.add(Dense(10, activation='softmax'))
     
     model.compile(
         optimizer='rmsprop',
-        loss='binary_crossentropy',
+        loss='categorical_crossentropy',
         metrics=['accuracy']
     )
     print ("Model Complete:" + str(time.strftime("%H:%M:%S")))
