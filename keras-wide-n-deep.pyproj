@@ -21,6 +21,9 @@
     <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="visualization_and_testing.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="wide_deep_keras_example.py" />
     <Compile Include="wide_deep_keras.py" />
   </ItemGroup>

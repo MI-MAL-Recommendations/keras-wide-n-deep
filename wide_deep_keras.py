@@ -55,6 +55,31 @@ def preprocess(df):
     X_deep = df_deep.values
     return X_wide, X_deep, y
 
+def build_wide_deep_model(wide_shape, deepshape):
+    # Wide network
+    wide = Sequential()
+    wide.add(Dense(1, input_dim=wide_shape))
+    
+    # Deep network
+    deep = Sequential()
+    # TODO: add embedding
+    deep.add(Dense(input_dim=deepshape, output_dim=100, activation='relu'))
+    deep.add(Dense(50, activation='relu'))
+    deep.add(Dense(25, activation='relu'))
+    deep.add(Dense(1, activation='sigmoid'))
+    
+    # Combining the two - final layer
+    model = Sequential()
+    model.add(Merge([wide, deep], mode='concat', concat_axis=1))
+    model.add(Dense(10, activation='softmax'))
+    
+    model.compile(
+        optimizer='rmsprop',
+        loss='categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    return model
+
 def main():
     print ("Begin:" + str(time.strftime("%H:%M:%S")))
     df = pd.read_csv("file:///C:/Users/jaden/Documents/SYDE%20522/Data%20Set/data_user.csv", names = COLUMNS, nrows = 100000)
@@ -79,29 +104,15 @@ def main():
     X_test_deep = X_deep[~mask]
     y_test = y[~mask]
     
-    # Wide network
-    wide = Sequential()
-    wide.add(Dense(1, input_dim=X_train_wide.shape[1]))
-    
-    # Deep network
-    deep = Sequential()
-    # TODO: add embedding
-    deep.add(Dense(input_dim=X_train_deep.shape[1], output_dim=100, activation='relu'))
-    deep.add(Dense(100, activation='relu'))
-    deep.add(Dense(50, activation='relu'))
-    deep.add(Dense(1, activation='sigmoid'))
-    
-    # Combining the two - final layer
-    model = Sequential()
-    model.add(Merge([wide, deep], mode='concat', concat_axis=1))
-    model.add(Dense(10, activation='softmax'))
-    
-    model.compile(
-        optimizer='rmsprop',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
+    model = build_wide_deep_model(X_train_wide.shape[1],X_train_deep.shape[1])
     print ("Model Complete:" + str(time.strftime("%H:%M:%S")))
+
+    shape_filename = 'model_shapes.txt'
+    shape_file = open(shape_filename, 'w')
+    shape_file.write("%s\n" % X_train_wide.shape[1])
+    shape_file.write("%s\n" % X_train_deep.shape[1])
+    shape_file.close()
+    print('Shapes saved as {}'.format(shape_filename))
     
     epoch_count = 10
 
@@ -112,15 +123,9 @@ def main():
     #print('\nTesting loss: {}, acc: {}\n'.format(loss, accuracy))
     print ("Fit Complete:" + str(time.strftime("%H:%M:%S")))
 
-    model_file = 'keras_model.h5'
+    model_file = 'keras_model_weights.h5'
     model.save(model_file)
-    print('Model saved as {}'.format(model_file))
-
-    shape_filename = 'model_shapes.txt'
-    shape_file = open(shape_filename, 'w')
-    shape_file.write("%s\n" % X_train_wide.shape[1])
-    shape_file.write("%s\n" % X_train_deep.shape[1])
-    print('Shapes saved as {}'.format(shape_filename))
+    print('Model weights saved as {}'.format(model_file))
     
 
     preds = model.predict([X_test_wide, X_test_deep])
@@ -128,6 +133,7 @@ def main():
     predict_file = open(predict_filename, 'w')
     for item in preds:
         predict_file.write("%s\n" % item)
+    predict_file.close()
     print('Predictions saved as {}'.format(predict_filename))
 
 
